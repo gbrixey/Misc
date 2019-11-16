@@ -29,20 +29,21 @@ def ensure_table(db):
             track_id integer primary key,
             artist text,
             name text,
+            first_seen text,
             last_seen text
         );
     '''
     db.cursor().execute(sql_create_table)
 
-def update_entry(db, track_id, artist, name, date_string):
+def update_entry(db, track_id, artist, name, current_date):
     sql_upsert = '''
-        insert into tracks (track_id, artist, name, last_seen) values (?, ?, ?, ?)
+        insert into tracks (track_id, artist, name, first_seen, last_seen) values (?, ?, ?, ?, ?)
             on conflict(track_id) do update set
                 artist = excluded.artist,
                 name = excluded.name,
                 last_seen = excluded.last_seen;
     '''
-    db.cursor().execute(sql_upsert, (track_id, artist, name, date_string))
+    db.cursor().execute(sql_upsert, (track_id, artist, name, current_date, current_date))
 
 def fetch_playlist():
     token = jwt_token()
