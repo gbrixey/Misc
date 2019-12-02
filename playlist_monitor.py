@@ -92,7 +92,7 @@ def update_tracks_database():
 
 def print_current_playlist():
     '''Prints all tracks currently on the playlist, based on the values in the tracks database table.
-    The newest tracks are highlighted.'''
+    New tracks (not seen before on the playlist) are highlighted.'''
     tracks = get_playlist_tracks_from_database()
     last_seen_dates = [parse_date(track[4]) for track in tracks]
     latest_date = max(last_seen_dates)
