@@ -10,6 +10,8 @@ URL = 'https://api.music.apple.com/v1/catalog/us/playlists/pl.472dc0c5efe548bb98
 KEY_ID = os.environ['PM_KEY_ID']
 TEAM_ID = os.environ['PM_TEAM_ID']
 DATABASE = 'ambient_essentials.db'
+BOLD = '\033[1m'
+UNBOLD = '\033[0m'
 
 def jwt_token():
     '''Creates a JWT token from the p8 file stored in the current directory. This function expects
@@ -32,23 +34,29 @@ def ensure_table(db):
             artist text,
             name text,
             first_seen text,
-            last_seen text
+            last_seen text,
+            playlist_index integer
         );
     '''
     db.cursor().execute(sql_create_table)
 
-def update_entry(db, track_id, artist, name, current_date):
+def update_entry(db, track_id, artist, name, current_date, index):
     '''Updates the database with the given parameters. If a row with a matching track_id already exists
     in the database, this function updates the artist, name, and last_seen columns for that row.
     Otherwise it inserts a new row.'''
     sql_upsert = '''
-        insert into tracks (track_id, artist, name, first_seen, last_seen) values (?, ?, ?, ?, ?)
+        insert into tracks (track_id, artist, name, first_seen, last_seen, playlist_index) values (?, ?, ?, ?, ?, ?)
             on conflict(track_id) do update set
                 artist = excluded.artist,
                 name = excluded.name,
-                last_seen = excluded.last_seen;
+                last_seen = excluded.last_seen,
+                playlist_index = excluded.playlist_index;
     '''
-    db.cursor().execute(sql_upsert, (track_id, artist, name, current_date, current_date))
+    db.cursor().execute(sql_upsert, (track_id, artist, name, current_date, current_date, index))
+
+def parse_date(date_string):
+    '''Parse a date string to a datetime object, using the format found in the Apple Music JSON.'''
+    return datetime.datetime.strptime(date_string, '%Y-%m-%dT%H:%M:%SZ')
 
 def get_playlist_tracks_from_database():
     '''Gets all tracks from the database.'''
@@ -67,20 +75,36 @@ def fetch_playlist_from_web():
     playlist = response.json()['data'][0]
     return playlist
 
-def update_tracks():
+def update_tracks_database():
     '''Fetches the Ambient Essentials playlist from the internet and updates the tracks in the database.'''
     db = sqlite3.connect(DATABASE)
     ensure_table(db)
     playlist = fetch_playlist_from_web()
     last_modified = playlist['attributes']['lastModifiedDate']
     tracks = playlist['relationships']['tracks']['data']
-    for track in tracks:
+    for (index, track) in enumerate(tracks):
         track_id = track['id']
         artist = track['attributes']['artistName']
         name = track['attributes']['name']
-        update_entry(db, track_id, artist, name, last_modified)
+        update_entry(db, track_id, artist, name, last_modified, index)
     db.commit()
     db.close()
 
+def print_current_playlist():
+    '''Prints all tracks currently on the playlist, based on the values in the tracks database table.
+    The newest tracks are highlighted.'''
+    tracks = get_playlist_tracks_from_database()
+    last_seen_dates = [parse_date(track[4]) for track in tracks]
+    latest_date = max(last_seen_dates)
+    current_tracks = [track for (index, track) in enumerate(tracks) if last_seen_dates[index] == latest_date]
+    # Sort by playlist order
+    current_tracks = sorted(current_tracks, key = lambda track: track[5])
+    max_artist_name_length = max([len(track[1]) for track in current_tracks])
+    for track in current_tracks:
+        is_new = (parse_date(track[3]) == latest_date)
+        prefix = '{0}NEW'.format(BOLD) if is_new else '   '
+        suffix = UNBOLD if is_new else ''
+        print('{0}  {1:{length}} {2}{3}'.format(prefix, track[1], track[2], suffix, length = max_artist_name_length))
+
 if __name__ == "__main__":
-    update_tracks()
+    update_tracks_database()
