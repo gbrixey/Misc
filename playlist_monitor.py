@@ -105,7 +105,8 @@ def print_current_playlist():
     version_dates = [parse_date(version_string) for version_string in version_strings.split(',')]
     deduped_version_dates = list(set(version_dates))
     sorted_version_dates = sorted(deduped_version_dates)
-    latest_date_string = format_date(sorted_version_dates[-1])
+    latest_date = sorted_version_dates[-1]
+    latest_date_string = format_date(latest_date)
     # The second most recent date is used to determine if a track was re-added to the playlist after being removed earlier.
     second_latest_date_string = None
     if len(sorted_version_dates) > 1:
@@ -115,6 +116,10 @@ def print_current_playlist():
     # Sort tracks by playlist order
     current_tracks = sorted(current_tracks, key = lambda track: track[4])
     max_artist_name_length = max([len(track[1]) for track in current_tracks])
+    # Print a header
+    print('{0}\nAMBIENT ESSENTIALS PLAYLIST{1}'.format(BOLD, UNBOLD))
+    print('Updated {0}\n'.format(datetime.datetime.strftime(latest_date, '%d %B %Y')))
+    # Then print all the tracks in the playlist
     for track in current_tracks:
         # The track is brand-new if it only has one date in the versions string (i.e. the most recent date)
         is_new = len(track[3].split(',')) == 1
@@ -127,3 +132,4 @@ def print_current_playlist():
 
 if __name__ == "__main__":
     update_tracks_database()
+    print_current_playlist()
