@@ -9,6 +9,7 @@ import sqlite3
 URL = 'https://api.music.apple.com/v1/catalog/us/playlists/pl.472dc0c5efe548bb9846e484378aa47b'
 # Date format used in the Apple Music JSON
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
+NICE_DATE_FORMAT = '%d %B %Y'
 KEY_ID = os.environ['PM_KEY_ID']
 TEAM_ID = os.environ['PM_TEAM_ID']
 DATABASE = 'ambient_essentials.db'
@@ -60,9 +61,10 @@ def parse_date(date_string):
     '''Parse a date string to a datetime object, using the format found in the Apple Music JSON.'''
     return datetime.datetime.strptime(date_string, DATE_FORMAT)
 
-def format_date(date):
+def format_date(date, nice = False):
     '''Format a datetime object as a string, using the format found in the Apple Music JSON.'''
-    return datetime.datetime.strftime(date, DATE_FORMAT)
+    date_format = NICE_DATE_FORMAT if nice else DATE_FORMAT
+    return datetime.datetime.strftime(date, date_format)
 
 def get_playlist_tracks_from_database():
     '''Gets all tracks from the database.'''
@@ -96,21 +98,24 @@ def update_tracks_database():
     db.commit()
     db.close()
 
+def playlist_update_dates():
+    '''Returns a list of dates the playlist was updated, based on the data in the database.'''
+    tracks = get_playlist_tracks_from_database()
+    all_date_strings = ','.join([track[3] for track in tracks]).split(',')
+    return sorted(list(set(all_date_strings)))
+
 def print_current_playlist():
     '''Prints all tracks currently on the playlist, based on the values in the tracks database table.
     The tracks added to the playlist in the latest update are highlighted.'''
     tracks = get_playlist_tracks_from_database()
     # Parse all the date strings in the database to figure out the date of the most recent version of the playlist.
-    version_strings = ','.join([track[3] for track in tracks])
-    version_dates = [parse_date(version_string) for version_string in version_strings.split(',')]
-    deduped_version_dates = list(set(version_dates))
-    sorted_version_dates = sorted(deduped_version_dates)
-    latest_date = sorted_version_dates[-1]
-    latest_date_string = format_date(latest_date)
+    date_strings = playlist_update_dates()
+    latest_date_string = date_strings[-1]
+    latest_date = parse_date(latest_date_string)
     # The second most recent date is used to determine if a track was re-added to the playlist after being removed earlier.
     second_latest_date_string = None
-    if len(sorted_version_dates) > 1:
-        second_latest_date_string = format_date(sorted_version_dates[-2])
+    if len(date_strings) > 1:
+        second_latest_date_string = date_strings[-2]
     # Current tracks will have the most recent date in the versions string.
     current_tracks = [track for (index, track) in enumerate(tracks) if latest_date_string in track[3]]
     # Sort tracks by playlist order
@@ -118,7 +123,7 @@ def print_current_playlist():
     max_artist_name_length = max([len(track[1]) for track in current_tracks])
     # Print a header
     print('{0}\nAMBIENT ESSENTIALS PLAYLIST{1}'.format(BOLD, UNBOLD))
-    print('Updated {0}\n'.format(datetime.datetime.strftime(latest_date, '%d %B %Y')))
+    print('Updated {0}\n'.format(format_date(latest_date, nice = True)))
     # Then print all the tracks in the playlist
     for track in current_tracks:
         # The track is brand-new if it only has one date in the versions string (i.e. the most recent date)
@@ -129,6 +134,26 @@ def print_current_playlist():
         suffix = UNBOLD if is_new else ''
         length = max_artist_name_length + 2
         print('{0}{1:10}{2:{length}}{3}{4}'.format(pre_prefix, prefix, track[1], track[2], suffix, length = length))
+
+def export_csv():
+    '''Saves a CSV file with all tracks in the database and the dates of their inclusion in the playlist.'''
+    tracks = get_playlist_tracks_from_database()
+    date_strings = playlist_update_dates()
+    update_dates = [parse_date(ds) for ds in date_strings]
+    # Create headers for the CSV columns
+    header_line_components = ['Artist', 'Song Title']
+    header_line_components.extend([format_date(ud, nice = True) for ud in update_dates])
+    header_line = ','.join(header_line_components)
+    csv_lines = [header_line]
+    for track in tracks:
+        quoted_artist = '"{0}"'.format(track[1])
+        quoted_song_title = '"{0}"'.format(track[2])
+        components = [quoted_artist, quoted_song_title]
+        components.extend([('TRUE' if ds in track[3] else 'FALSE') for ds in date_strings])
+        csv_lines.append(','.join(components))
+    with open('ambient_essentials.csv', 'w') as csv_file:
+        csv_file.write('\n'.join(csv_lines))
+    print('Wrote {0} lines'.format(len(csv_lines)))
 
 if __name__ == "__main__":
     update_tracks_database()
