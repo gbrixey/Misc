@@ -4,17 +4,37 @@ import jwt
 import datetime
 import requests
 import sqlite3
+import argparse
+import textwrap
 
-# URL of the Ambient Essentials playlist
-URL = 'https://api.music.apple.com/v1/catalog/us/playlists/pl.472dc0c5efe548bb9846e484378aa47b'
+PLAYLIST_NAME = {
+    1: 'Ambient Essentials',
+    2: 'Pure Focus'
+}
+PLAYLIST_URL = {
+    1: 'https://api.music.apple.com/v1/catalog/us/playlists/pl.472dc0c5efe548bb9846e484378aa47b',
+    2: 'https://api.music.apple.com/v1/catalog/us/playlists/pl.dbd712beded846dca273d5d3259d28aa'
+}
 # Date format used in the Apple Music JSON
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 NICE_DATE_FORMAT = '%d %B %Y'
 KEY_ID = os.environ['PM_KEY_ID']
 TEAM_ID = os.environ['PM_TEAM_ID']
-DATABASE = 'ambient_essentials.db'
 BOLD = '\033[1m'
 UNBOLD = '\033[0m'
+
+def snake_case(string):
+    return string.lower().replace(' ', '_')
+
+def filename(key, extension):
+    playlist_name = PLAYLIST_NAME[key]
+    return '{0}.{1}'.format(snake_case(playlist_name), extension)
+
+def database(key):
+    return filename(key, 'db')
+
+def csv_filename(key):
+    return filename(key, 'csv')
 
 def jwt_token():
     '''Creates a JWT token from the p8 file stored in the current directory. This function expects
@@ -66,28 +86,28 @@ def format_date(date, nice = False):
     date_format = NICE_DATE_FORMAT if nice else DATE_FORMAT
     return datetime.datetime.strftime(date, date_format)
 
-def get_playlist_tracks_from_database():
+def get_playlist_tracks_from_database(key):
     '''Gets all tracks from the database.'''
-    db = sqlite3.connect(DATABASE)
+    db = sqlite3.connect(database(key))
     ensure_table(db)
     sql_fetch = '''select * from tracks order by track_id desc'''
     tracks = db.cursor().execute(sql_fetch).fetchall()
     db.close()
     return tracks
 
-def fetch_playlist_from_web():
-    '''Fetches the Ambient Essentials playlist from the internet and returns the result in JSON format.'''
+def fetch_playlist_from_web(key):
+    '''Fetches the playlist from the internet and returns the result in JSON format.'''
     token = jwt_token()
     headers = {'Authorization': 'Bearer {0}'.format(token)}
-    response = requests.get(URL, headers = headers)
+    response = requests.get(PLAYLIST_URL[key], headers = headers)
     playlist = response.json()['data'][0]
     return playlist
 
-def update_tracks_database():
-    '''Fetches the Ambient Essentials playlist from the internet and updates the tracks in the database.'''
-    db = sqlite3.connect(DATABASE)
+def update_tracks_database(key):
+    '''Fetches the playlist from the internet and updates the tracks in the database.'''
+    db = sqlite3.connect(database(key))
     ensure_table(db)
-    playlist = fetch_playlist_from_web()
+    playlist = fetch_playlist_from_web(key)
     last_modified = playlist['attributes']['lastModifiedDate']
     tracks = playlist['relationships']['tracks']['data']
     for (index, track) in enumerate(tracks):
@@ -98,18 +118,18 @@ def update_tracks_database():
     db.commit()
     db.close()
 
-def playlist_update_dates():
+def playlist_update_dates(key):
     '''Returns a list of dates the playlist was updated, based on the data in the database.'''
-    tracks = get_playlist_tracks_from_database()
+    tracks = get_playlist_tracks_from_database(key)
     all_date_strings = ','.join([track[3] for track in tracks]).split(',')
     return sorted(list(set(all_date_strings)))
 
-def print_current_playlist():
+def print_current_playlist(key):
     '''Prints all tracks currently on the playlist, based on the values in the tracks database table.
     The tracks added to the playlist in the latest update are highlighted.'''
-    tracks = get_playlist_tracks_from_database()
+    tracks = get_playlist_tracks_from_database(key)
     # Parse all the date strings in the database to figure out the date of the most recent version of the playlist.
-    date_strings = playlist_update_dates()
+    date_strings = playlist_update_dates(key)
     latest_date_string = date_strings[-1]
     latest_date = parse_date(latest_date_string)
     # The second most recent date is used to determine if a track was re-added to the playlist after being removed earlier.
@@ -122,7 +142,7 @@ def print_current_playlist():
     current_tracks = sorted(current_tracks, key = lambda track: track[4])
     max_artist_name_length = max([len(track[1]) for track in current_tracks])
     # Print a header
-    print('{0}\nAMBIENT ESSENTIALS PLAYLIST{1}'.format(BOLD, UNBOLD))
+    print('{0}\n{1} PLAYLIST{2}'.format(BOLD, PLAYLIST_NAME[key].upper(), UNBOLD))
     print('Updated {0}\n'.format(format_date(latest_date, nice = True)))
     # Then print all the tracks in the playlist
     for track in current_tracks:
@@ -135,10 +155,10 @@ def print_current_playlist():
         length = max_artist_name_length + 2
         print('{0}{1:10}{2:{length}}{3}{4}'.format(pre_prefix, prefix, track[1], track[2], suffix, length = length))
 
-def export_csv():
+def export_csv(key):
     '''Saves a CSV file with all tracks in the database and the dates of their inclusion in the playlist.'''
-    tracks = get_playlist_tracks_from_database()
-    date_strings = playlist_update_dates()
+    tracks = get_playlist_tracks_from_database(key)
+    date_strings = playlist_update_dates(key)
     update_dates = [parse_date(ds) for ds in date_strings]
     # Create headers for the CSV columns
     header_line_components = ['Artist', 'Song Title']
@@ -151,10 +171,42 @@ def export_csv():
         components = [quoted_artist, quoted_song_title]
         components.extend([('TRUE' if ds in track[3] else 'FALSE') for ds in date_strings])
         csv_lines.append(','.join(components))
-    with open('ambient_essentials.csv', 'w') as csv_file:
+    with open(csv_filename(key), 'w') as csv_file:
         csv_file.write('\n'.join(csv_lines))
     print('Wrote {0} lines'.format(len(csv_lines)))
 
+def create_parser():
+    '''Creates and returns the argument parser for this script.'''
+    parser = argparse.ArgumentParser(
+        formatter_class = argparse.RawDescriptionHelpFormatter,
+        description = textwrap.dedent('''\
+            Monitor a playlist. Pass in a key to select the playlist:
+              1 - Ambient Essentials (default)
+              2 - Pure Focus
+            '''))
+    parser.add_argument(
+        '-k',
+        dest = 'key',
+        default = 1,
+        type = int,
+        help = 'Key that determines which playlist to monitor.'
+        )
+    parser.add_argument(
+        '--export',
+        action = 'store_true',
+        help = 'Export data to a CSV instead of printing to console.'
+        )
+    return parser
+
+def main():
+    parser = create_parser()
+    args = parser.parse_args()
+    key = args.key
+    update_tracks_database(key)
+    if args.export:
+        export_csv(key)
+    else:
+        print_current_playlist(key)
+
 if __name__ == "__main__":
-    update_tracks_database()
-    print_current_playlist()
+    main()
