@@ -124,7 +124,7 @@ def playlist_update_dates(key):
     all_date_strings = ','.join([track[3] for track in tracks]).split(',')
     return sorted(list(set(all_date_strings)))
 
-def print_current_playlist(key):
+def print_current_playlist(key, show_removed):
     '''Prints all tracks currently on the playlist, based on the values in the tracks database table.
     The tracks added to the playlist in the latest update are highlighted.'''
     tracks = get_playlist_tracks_from_database(key)
@@ -133,7 +133,7 @@ def print_current_playlist(key):
     latest_date_string = date_strings[-1]
     latest_date = parse_date(latest_date_string)
     # The second most recent date is used to determine if a track was re-added to the playlist after being removed earlier.
-    second_latest_date_string = None
+    second_latest_date_string = 'NONE'
     if len(date_strings) > 1:
         second_latest_date_string = date_strings[-2]
     # Current tracks will have the most recent date in the versions string.
@@ -148,12 +148,23 @@ def print_current_playlist(key):
     for track in current_tracks:
         # The track is brand-new if it only has one date in the versions string (i.e. the most recent date)
         is_new = len(track[3].split(',')) == 1
-        is_readded = not is_new and second_latest_date_string != None and second_latest_date_string not in track[3]
-        pre_prefix = BOLD if is_new else ''
-        prefix = 'NEW' if is_new else 'RE-ADDED' if is_readded else ''
-        suffix = UNBOLD if is_new else ''
-        length = max_artist_name_length + 2
-        print('{0}{1:10}{2:{length}}{3}{4}'.format(pre_prefix, prefix, track[1], track[2], suffix, length = length))
+        is_readded = not is_new and second_latest_date_string not in track[3]
+        print_track(track, max_artist_name_length, is_new = is_new, is_readded = is_readded)
+    # Then print the tracks that were removed
+    if show_removed:
+        was_removed = lambda track: second_latest_date_string in track[3] and latest_date_string not in track[3]
+        removed_tracks = [track for (index, track) in enumerate(tracks) if was_removed(track)]
+        removed_title = 'REMOVED:' if len(removed_tracks) > 0 else 'NO TRACKS WERE REMOVED.\n'
+        print('\n{0}{1}{2}'.format(BOLD, removed_title, UNBOLD))
+        for track in removed_tracks:
+            print_track(track, max_artist_name_length)
+
+def print_track(track, max_artist_name_length, is_new = False, is_readded = False):
+    pre_prefix = BOLD if is_new else ''
+    prefix = 'NEW' if is_new else 'RE-ADDED' if is_readded else ''
+    suffix = UNBOLD if is_new else ''
+    length = max_artist_name_length + 2
+    print('{0}{1:10}{2:{length}}{3}{4}'.format(pre_prefix, prefix, track[1], track[2], suffix, length = length))
 
 def export_csv(key):
     '''Saves a CSV file with all tracks in the database and the dates of their inclusion in the playlist.'''
@@ -192,6 +203,11 @@ def create_parser():
         help = 'Key that determines which playlist to monitor.'
         )
     parser.add_argument(
+        '--show-removed',
+        action = 'store_true',
+        help = 'Show tracks that were removed from the playlist in the latest update.'
+        )
+    parser.add_argument(
         '--export',
         action = 'store_true',
         help = 'Export data to a CSV instead of printing to console.'
@@ -206,7 +222,7 @@ def main():
     if args.export:
         export_csv(key)
     else:
-        print_current_playlist(key)
+        print_current_playlist(key, args.show_removed)
 
 if __name__ == "__main__":
     main()
