@@ -12,4 +12,6 @@ Collection of miscellaneous scripts
 - [random_walk.py](https://github.com/gbrixey/Misc/blob/main/random_walk.py): Random walk visualization
 - [snake.py](https://github.com/gbrixey/Misc/blob/main/snake.py): Command-line Snake game using [curses](https://docs.python.org/3/library/curses.html)
 - [soup.py](https://github.com/gbrixey/Misc/blob/main/soup.py): A reminder of how to use [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/) because I keep forgetting
+- [spelling_bee.py](https://github.com/gbrixey/Misc/blob/main/spelling_bee.py): A script that provides answers to the New York Times [Spelling Bee](https://www.nytimes.com/puzzles/spelling-bee) game.
 - [TextBasedDateCalculator.py](https://github.com/gbrixey/Misc/blob/main/TextBasedDateCalculator.py): Command-line version of `DateCalculator.py`
+- [wordle.py](https://github.com/gbrixey/Misc/blob/main/wordle.py): A script that helps you play [Wordle](https://www.nytimes.com/games/wordle/index.html).
