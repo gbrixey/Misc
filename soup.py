@@ -7,5 +7,7 @@ def soup():
     html = req.text
     soup = BeautifulSoup(html, 'html.parser')
     # example of using find_all by class
-    spans = soup.find_all('span', class_='some-class')
-    print(spans)
+    links = soup.find_all('a', class_='some-class')
+    first_link = links[0]
+    # example of getting an attribute from an element
+    first_link_url = first_link['href']
