@@ -6,18 +6,14 @@ class Wordle():
     def __init__(self, *args, **kwargs):
         with open('wordle_words.txt') as f:
             self.__word_list = f.read().split(',')
+            self._reset_variables()
 
     # Public
 
     def start(self):
         '''Start a Wordle game.'''
-        self.__guess = 1
-        self.__must_contain = set()
-        self.__must_contain_two = set()
-        self.__must_contain_three = set()
-        self.__excluded_letters = [set(), set(), set(), set(), set()]
-        self.__known_letters = [None, None, None, None, None]
-        while self.__guess < 7:
+        self._reset_variables()
+        while self.__turn < 7:
             guess = self._take_guess()
             if guess == 'q':
                 return
@@ -25,27 +21,72 @@ class Wordle():
             if pattern == 'Q':
                 return
             if pattern == 'GGGGG':
-                if self.__guess == 1:
+                if self.__turn == 1:
                     print('Congratulations! You got it in 1 guess.')
                 else:
-                    print('Congratulations! You got it in {0} guesses.'.format(self.__guess))
+                    print('Congratulations! You got it in {0} guesses.'.format(self.__turn))
                 return
             self._compute_guess(guess, pattern)
-            if self.__guess < 6:
-                self._suggested_word()
-            self.__guess += 1
+            if self.__turn < 6:
+                filtered_words = self._filtered_words()
+                print('{0} remaining words'.format(len(filtered_words)))
+                suggested_word = self._suggested_word()
+                if suggested_word:
+                    print('Suggested word: {0}'.format(suggested_word.upper()))
+            self.__turn += 1
         print("Uh oh, we didn't get it.")
         filtered_words = self._filtered_words()
         if len(filtered_words) > 0:
             print('The remaining words were:')
             for word in filtered_words:
                 print(word)
+                
+    def autoplay(self, solution, first_guess = None):
+        '''Determine how many guesses it would take to solve the Wordle
+        using the script's suggested word for every guess.'''
+        self._reset_variables()
+        guess = first_guess
+        if guess == None:
+            guess = self._suggested_word()
+        while self.__turn < 7:
+            pattern = self._pattern(solution, guess)
+            if pattern == 'GGGGG':
+                return self.__turn
+            self._compute_guess(guess, pattern)
+            guess = self._suggested_word()
+            self.__turn += 1
+        return None
+
+    def test(self, first_guess = None):
+        '''Test how well the script would do at solving the Wordle
+        for all of the available words in the word list.'''
+        score_dict = defaultdict(int)
+        for (index, word) in enumerate(self.__word_list):
+            score = self.autoplay(word, first_guess)
+            score_dict[score] += 1
+            score_string = 'X' if score == None else score
+            print('{0:<4} {1}: {2}'.format(index, word, score_string))
+        total_guesses = 0
+        for score in range(1, 7):
+            total_guesses += (score * score_dict[score])
+            print('{0}: {1}'.format(score, score_dict[score]))
+        print('X: {0}'.format(score_dict[None]))
+        average_score = total_guesses / len(self.__word_list)
+        print('Average: {0}'.format(average_score))
 
     # Private
     
+    def _reset_variables(self):
+        self.__turn = 1
+        self.__must_contain = set()
+        self.__must_contain_two = set()
+        self.__must_contain_three = set()
+        self.__excluded_letters = [set(), set(), set(), set(), set()]
+        self.__known_letters = [None, None, None, None, None]
+    
     def _take_guess(self):
         '''Ask the user to enter a five-letter Wordle guess.'''
-        if self.__guess == 1:
+        if self.__turn == 1:
             print('Starting a Wordle game!')
             print('You can enter Q at any time to quit.')
             print('Type your first guess:')
@@ -60,7 +101,7 @@ class Wordle():
     def _take_pattern(self, guess):
         '''Ask the user to enter the result of a Wordle guess.'''
         print('Type the colors of the letters in this guess.')
-        if self.__guess == 1:
+        if self.__turn == 1:
             print('B for blank, Y for yellow, G for green.')
             print('ex. BBYBG')
         pattern = input('>>> ').upper()
@@ -69,8 +110,32 @@ class Wordle():
             pattern = input('>>> ').upper()
         return pattern
 
+    def _pattern(self, solution, guess):
+        '''Returns the pattern of colors that would appear in a Wordle game
+        for the given guess and the given solution.'''
+        pattern = ['', '', '', '', '']
+        # Handle greens first
+        filtered_solution = list(solution)
+        filtered_guess = list(guess)
+        for (index, character) in enumerate(guess):
+            if guess[index] == solution[index]:
+                pattern[index] = 'G'
+                filtered_solution[index] = ''
+                filtered_guess[index] = ''
+        # Handle yellows and blanks
+        for (index, character) in enumerate(filtered_guess):
+            if character == '':
+                continue
+            if character in filtered_solution:
+                pattern[index] = 'Y'
+                index_in_solution = filtered_solution.index(character)
+                filtered_solution[index_in_solution] = ''
+            else:
+                pattern[index] = 'B'
+        return ''.join(pattern)
+
     def _compute_guess(self, guess, pattern):
-        '''Updates instance variables based on the given guess.'''
+        '''Updates instance variables based on the given guess and pattern.'''
         # Handle greens and yellows first
         yellows_per_character = defaultdict(int)
         greens_per_character = defaultdict(int)
@@ -112,16 +177,12 @@ class Wordle():
         '''Suggest the next word the user should play, based on the results so far.'''
         filtered_words = self._filtered_words()
         if len(filtered_words) == 0:
-            return
-        print('{0} remaining words'.format(len(filtered_words)))
-        character_count_dict = defaultdict(int)
+            return None
+        total_characters = len(filtered_words) * 5
         frequency_dict = defaultdict(float)
         for word in filtered_words:
             for character in word:
-                character_count_dict[character] += 1
-        total_characters = len(filtered_words) * 5
-        for character in character_count_dict.keys():
-            frequency_dict[character] = character_count_dict[character] / total_characters
+                frequency_dict[character] += (1 / total_characters)
         def word_weight(word):
             weight = sum([frequency_dict[character] for character in word])
             # give more weight to words with more unique characters
@@ -129,7 +190,7 @@ class Wordle():
             return weight
         word_weights = [(word, word_weight(word)) for word in filtered_words]
         word_weights.sort(key = lambda t: t[1], reverse = True)
-        print('Suggested word: {0}'.format(word_weights[0][0].upper()))
+        return word_weights[0][0]
 
     def _filtered_words(self):
         '''Returns words that match the results of previous guesses.'''
