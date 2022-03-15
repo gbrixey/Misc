@@ -41,7 +41,7 @@ class Wordle():
             for word in filtered_words:
                 print(word)
                 
-    def autoplay(self, solution, first_guess = None):
+    def autoplay(self, solution, first_guess = None, print_guesses = False):
         '''Determine how many guesses it would take to solve the Wordle
         using the script's suggested word for every guess.'''
         self._reset_variables()
@@ -49,12 +49,16 @@ class Wordle():
         if guess == None:
             guess = self._suggested_word()
         while self.__turn < 7:
+            if print_guesses:
+                print(guess)
             pattern = self._pattern(solution, guess)
             if pattern == 'GGGGG':
                 return self.__turn
             self._compute_guess(guess, pattern)
             guess = self._suggested_word()
             self.__turn += 1
+        if print_guesses:
+            print('X')
         return None
 
     def test(self, first_guess = None):
@@ -178,15 +182,14 @@ class Wordle():
         filtered_words = self._filtered_words()
         if len(filtered_words) == 0:
             return None
-        total_characters = len(filtered_words) * 5
         frequency_dict = defaultdict(float)
         for word in filtered_words:
             for character in word:
-                frequency_dict[character] += (1 / total_characters)
+                frequency_dict[character] += 1
         def word_weight(word):
             weight = sum([frequency_dict[character] for character in word])
             # give more weight to words with more unique characters
-            weight *= len(set(word))
+            weight *= (1 + len(set(word)))
             return weight
         word_weights = [(word, word_weight(word)) for word in filtered_words]
         word_weights.sort(key = lambda t: t[1], reverse = True)
