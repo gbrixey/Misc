@@ -3,10 +3,9 @@ from collections import defaultdict
 
 class Wordle():
 
-    def __init__(self, *args, **kwargs):
-        with open('wordle_words.txt') as f:
-            self.__word_list = f.read().split(',')
-            self._reset_variables()
+    def __init__(self):
+        self._load_word_list()
+        self._reset_variables()
 
     # Public
 
@@ -25,6 +24,7 @@ class Wordle():
                     print('Congratulations! You got it in 1 guess.')
                 else:
                     print('Congratulations! You got it in {0} guesses.'.format(self.__turn))
+                self._add_used_word(guess)
                 return
             self._compute_guess(guess, pattern)
             if self.__turn < 6:
@@ -40,7 +40,7 @@ class Wordle():
             print('The remaining words were:')
             for word in filtered_words:
                 print(word)
-                
+
     def autoplay(self, solution, first_guess = None, print_guesses = False):
         '''Determine how many guesses it would take to solve the Wordle
         using the script's suggested word for every guess.'''
@@ -78,8 +78,27 @@ class Wordle():
         average_score = total_guesses / len(self.__word_list)
         print('Average: {0}'.format(average_score))
 
+    def is_used(self, word):
+        '''Returns True if the given word has been used in a previous Wordle.'''
+        return word in self.__used_words
+
     # Private
-    
+
+    def _load_word_list(self):
+        with open('wordle_words.txt') as words_file:
+            all_words = words_file.read().split(',')
+        with open('wordle_used_words.txt') as used_words_file:
+            self.__used_words = used_words_file.read().split(',')
+        self.__word_list = list(set(all_words) - set(self.__used_words))
+
+    def _add_used_word(self, word):
+        '''Adds a new word to the wordle_used_words.txt file.'''
+        if word in self.__used_words:
+            return
+        self.__used_words.append(word)
+        with open('wordle_used_words.txt', 'w') as used_words_file:
+            used_words_file.write(','.join(self.__used_words))
+
     def _reset_variables(self):
         self.__turn = 1
         self.__must_contain = set()
@@ -87,7 +106,7 @@ class Wordle():
         self.__must_contain_three = set()
         self.__excluded_letters = [set(), set(), set(), set(), set()]
         self.__known_letters = [None, None, None, None, None]
-    
+
     def _take_guess(self):
         '''Ask the user to enter a five-letter Wordle guess.'''
         if self.__turn == 1:
@@ -101,7 +120,7 @@ class Wordle():
             print('Please enter a 5 letter word.')
             guess = input('>>> ').lower()
         return guess
-        
+
     def _take_pattern(self, guess):
         '''Ask the user to enter the result of a Wordle guess.'''
         print('Type the colors of the letters in this guess.')
@@ -198,7 +217,7 @@ class Wordle():
     def _filtered_words(self):
         '''Returns words that match the results of previous guesses.'''
         return [word for word in self.__word_list if self._filter_word(word)]
-    
+
     def _filter_word(self, word):
         '''Determines if the given word matches the results of previous guesses.'''
         for letter in self.__must_contain:
