@@ -172,14 +172,14 @@ def export_csv(key):
     date_strings = playlist_update_dates(key)
     update_dates = [parse_date(ds) for ds in date_strings]
     # Create headers for the CSV columns
-    header_line_components = ['Artist', 'Song Title']
+    header_line_components = ['Track ID', 'Artist', 'Song Title']
     header_line_components.extend([format_date(ud, nice = True) for ud in update_dates])
     header_line = ','.join(header_line_components)
     csv_lines = [header_line]
     for track in tracks:
         quoted_artist = '"{0}"'.format(track[1])
         quoted_song_title = '"{0}"'.format(track[2])
-        components = [quoted_artist, quoted_song_title]
+        components = [str(track[0]), quoted_artist, quoted_song_title]
         components.extend([('TRUE' if ds in track[3] else 'FALSE') for ds in date_strings])
         csv_lines.append(','.join(components))
     with open(csv_filename(key), 'w') as csv_file:
