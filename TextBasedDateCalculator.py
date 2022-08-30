@@ -1,3 +1,4 @@
+import calendar
 import datetime
 import re
 
@@ -77,6 +78,8 @@ def _days_months_and_years_between_two_dates(start_date, end_date):
 	if (start_date > end_date):
 		return _days_months_and_years_between_two_dates(end_date, start_date)
 	working_date = datetime.date(start_date.year, start_date.month, start_date.day)
+	# Save start day for later reference
+	start_day = start_date.day
 	# Start with months = -1 so that on the first iteration it will become 0 (the lowest possible value).
 	months = -1
 	while working_date <= end_date:
@@ -87,7 +90,9 @@ def _days_months_and_years_between_two_dates(start_date, end_date):
 		if new_month > 12:
 			new_month = 1
 			new_year += 1
-		working_date = datetime.date(new_year, new_month, working_date.day)
+		days_in_new_month = calendar.monthrange(new_year, new_month)[1]
+		new_day = min(start_day, days_in_new_month)
+		working_date = datetime.date(new_year, new_month, new_day)
 	years = int(months / 12)
 	months = months % 12
 	plural_year = 'years' if years != 1 else 'year'
