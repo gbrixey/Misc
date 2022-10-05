@@ -45,8 +45,7 @@ def jwt_token():
     exp = iat + datetime.timedelta(seconds = 30)
     headers = {'alg': 'ES256', 'kid': KEY_ID}
     payload = {'iss': TEAM_ID, 'iat': iat, 'exp': exp}
-    byte_token = jwt.encode(payload, key, algorithm = 'ES256', headers = headers)
-    token = byte_token.decode('utf-8')
+    token = jwt.encode(payload, key, algorithm = 'ES256', headers = headers)
     return token
 
 def ensure_table(db):
