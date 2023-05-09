@@ -104,6 +104,8 @@ class Wordle():
         self.__must_contain = set()
         self.__must_contain_two = set()
         self.__must_contain_three = set()
+        self.__must_contain_exactly_one = set()
+        self.__must_contain_exactly_two = set()
         self.__excluded_letters = [set(), set(), set(), set(), set()]
         self.__known_letters = [None, None, None, None, None]
 
@@ -172,8 +174,10 @@ class Wordle():
                 self.__excluded_letters[index].add(character)
                 yellows_per_character[character] += 1
         # Handle blanks
+        characters_with_blanks = set()
         for (index, character) in enumerate(guess):
             if pattern[index] == 'B':
+                characters_with_blanks.add(character)
                 # If the letter already appeared as a yellow elsewhere in the word,
                 # then it only gets excluded from this index specifically.
                 if yellows_per_character[character] > 0:
@@ -191,6 +195,10 @@ class Wordle():
         # Keep track of whether the word should contain multiples of a letter.
         for character in guess:
             yellows_and_greens = yellows_per_character[character] + greens_per_character[character]
+            if yellows_and_greens == 1 and character in characters_with_blanks:
+                self.__must_contain_exactly_one.add(character)
+            if yellows_and_greens == 2 and character in characters_with_blanks:
+                self.__must_contain_exactly_two.add(character)
             if yellows_and_greens > 1:
                 self.__must_contain_two.add(character)
             if yellows_and_greens > 2:
@@ -228,6 +236,12 @@ class Wordle():
                 return False
         for letter in self.__must_contain_three:
             if word.count(letter) < 3:
+                return False
+        for letter in self.__must_contain_exactly_one:
+            if word.count(letter) != 1:
+                return False
+        for letter in self.__must_contain_exactly_two:
+            if word.count(letter) != 2:
                 return False
         for (index, character) in enumerate(word):
             known_letter = self.__known_letters[index]
