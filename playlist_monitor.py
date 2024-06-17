@@ -41,7 +41,7 @@ def jwt_token():
     the p8 filename to be in the default format AuthKey_TEAM.p8 where TEAM is the team ID provided by Apple.'''
     with open('AuthKey_{0}.p8'.format(KEY_ID)) as key_file:
         key = key_file.read()
-    iat = datetime.datetime.utcnow()
+    iat = datetime.datetime.now(datetime.UTC)
     exp = iat + datetime.timedelta(seconds = 30)
     headers = {'alg': 'ES256', 'kid': KEY_ID}
     payload = {'iss': TEAM_ID, 'iat': iat, 'exp': exp}
