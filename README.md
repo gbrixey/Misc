@@ -3,6 +3,7 @@ Collection of miscellaneous scripts
 
 - [ambulance-progress-bar.sh](https://github.com/gbrixey/Misc/blob/main/ambulance-progress-bar.sh): Progress animation using the ambulance emoji
 - [DateCalculator.py](https://github.com/gbrixey/Misc/blob/main/DateCalculator.py): Date calculator built with Tkinter
+- [elements.py](https://github.com/gbrixey/Misc/blob/main/elements.py): This script tries to break up a word into a list of chemical element symbols
 - [git-sha-info.py](https://github.com/gbrixey/Misc/blob/main/git-sha-info.py): This script will tell you "interesting" facts about your commit hashes
 - [look-busy.sh](https://github.com/gbrixey/Misc/blob/main/look-busy.sh): A script that makes it look as if something important is going on
 - [moderation.py](https://github.com/gbrixey/Misc/blob/main/moderation.py): Command-line predecessor of my [Moderation](https://github.com/gbrixey/Moderation) app
