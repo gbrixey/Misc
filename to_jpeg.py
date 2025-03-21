@@ -14,8 +14,10 @@ def to_jpeg(filenames):
         expanded_filenames += glob.glob(filename)
     for filename in expanded_filenames:
         name, extension = os.path.splitext(filename)
+        new_filename = name + '.jpeg'
         image = Image.open(filename)
-        image.save(name + '.jpeg', "JPEG")
+        image.save(new_filename, "JPEG")
+        print(f'Created {new_filename}')
 
 def create_parser():
     '''Creates and returns the argument parser for this script.'''
