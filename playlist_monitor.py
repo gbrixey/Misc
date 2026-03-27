@@ -181,7 +181,7 @@ def export_csv(key):
         components = [str(track[0]), quoted_artist, quoted_song_title]
         components.extend([('TRUE' if ds in track[3] else 'FALSE') for ds in date_strings])
         csv_lines.append(','.join(components))
-    with open(csv_filename(key), 'w') as csv_file:
+    with open(csv_filename(key), 'w', encoding = 'utf-8') as csv_file:
         csv_file.write('\n'.join(csv_lines))
     print('Wrote {0} lines'.format(len(csv_lines)))
 
