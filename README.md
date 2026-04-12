@@ -6,7 +6,6 @@ Collection of miscellaneous scripts
 - [elements.py](https://github.com/gbrixey/Misc/blob/main/elements.py): This script tries to break up a word into a list of chemical element symbols
 - [git-sha-info.py](https://github.com/gbrixey/Misc/blob/main/git-sha-info.py): This script will tell you "interesting" facts about your commit hashes
 - [look-busy.sh](https://github.com/gbrixey/Misc/blob/main/look-busy.sh): A script that makes it look as if something important is going on
-- [moderation.py](https://github.com/gbrixey/Misc/blob/main/moderation.py): Command-line predecessor of my [Moderation](https://github.com/gbrixey/Moderation) app
 - [playlist_monitor.py](https://github.com/gbrixey/Misc/blob/main/playlist_monitor.py): Script that can be used to track the contents of Apple Music catalog playlists over time
 - [pwned.py](https://github.com/gbrixey/Misc/blob/main/pwned.py): For checking if passwords have been exposed in data breaches. Uses the [HIBP](https://haveibeenpwned.com/Passwords) API
 - [qlobe.rb](https://github.com/gbrixey/Misc/blob/main/qlobe.rb): Rotating globe quine by [Yusuke Endoh](https://github.com/mame)
