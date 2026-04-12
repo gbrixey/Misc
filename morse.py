@@ -170,20 +170,20 @@ def to_morse_symbol(character):
     try:
         return to_morse_dict[character.upper()]
     except:
-        print(f'I don\'t know how to translate this character: {character}')
+        print(f'I don\'t know how to translate this character into Morse code: {character}')
         return '..--..'
 
-def from_morse(text):
-    text = remove_extra_spaces(text)
-    words = text.split(' ')
-    characters = [from_morse_symbol(w) for w in words]
+def from_morse(code):
+    code = remove_extra_spaces(code)
+    symbols = code.split(' ')
+    characters = [from_morse_symbol(symbol) for symbol in symbols]
     return ''.join(characters)
 
 def from_morse_symbol(symbol):
     try:
         return from_morse_dict[symbol]
     except:
-        print(f'I don\'t know how to translate this symbol: {symbol}')
+        print(f'I don\'t know how to translate this Morse symbol: {symbol}')
         return '�'
 
 def remove_extra_spaces(text):
