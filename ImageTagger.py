@@ -13,6 +13,8 @@ class ImageTagger():
     THIS_FILENAME = 'ImageTagger.py'
     CSV_SEPARATOR = '\t'
     IMAGE_SIZE = 600
+    ALLOWED_FILE_EXTENSIONS = ['gif', 'jpeg', 'jpg', 'mp4', 'pdf', 'png', 'webp']
+
     CHECKBUTTON_DEFAULT_BG = 'gray94'
     CHECKBUTTON_SELECTED_BG = 'LightBlue1'
     MODE_TAG = 'tag'
@@ -35,6 +37,36 @@ class ImageTagger():
         else:
             self._start_view_mode()
         self.__root.mainloop()
+
+    def print_info(self, sort_by_count = False):
+        '''Print a list of the number of files for each tag and each file extension. By default the tags and extensions 
+        are sorted alphabetically. Pass in `sort_by_count = True` to sort them by file count (descending) instead.'''
+        if len(self.__tags_dict) == 0:
+            print('\nNo tagged files.\n')
+            return
+        count_by_extension = defaultdict(int)
+        count_by_tag = defaultdict(int)
+        for filename, tags_list in self.__tags_dict.items():
+            extension = filename.split('.')[-1]
+            count_by_extension[extension] += 1
+            for tag in tags_list:
+                count_by_tag[tag] += 1
+        sort_key = (lambda t: t[1]) if sort_by_count else (lambda t: t[0])
+        sort_reverse = sort_by_count
+        sorted_tags = sorted(count_by_tag.items(), key = sort_key, reverse = sort_reverse)
+        max_tag_length = max([len(tag) for tag in count_by_tag.keys()])
+        print('\nFile count for each tag:')
+        for tag, count in sorted_tags:
+            padded_tag = tag.ljust(max_tag_length + 3, '.')
+            print(f'    {padded_tag}{count}')
+        sorted_extensions = sorted(count_by_extension.items(), key = sort_key, reverse = sort_reverse)
+        max_extension_length = max([len(extension) for extension in count_by_extension.keys()])
+        extension_padding_length = max(max_tag_length, max_extension_length)
+        print('\nFile count for each file extension:')
+        for extension, count in sorted_extensions:
+            padded_extension = extension.ljust(extension_padding_length + 3, '.')
+            print(f'    {padded_extension}{count}')
+        print(f'\nTOTAL FILE COUNT: {len(self.__tags_dict)}\n')
 
     # View creation functions
 
@@ -81,7 +113,8 @@ class ImageTagger():
             self._create_checkbutton(tag)
         self._update_checkbutton_bgs()
         if len(self.__all_tags) == 0:
-            self.__no_tags_label = tk.Label(self.__tags_inner_frame, text = 'No tags yet', anchor = tk.W)
+            no_tags_text = 'No tags yet. Add tags using the text field in the bottom right corner.'
+            self.__no_tags_label = tk.Label(self.__tags_inner_frame, text = no_tags_text, anchor = tk.W)
             self.__no_tags_label.pack(side = tk.TOP, anchor = tk.W, padx = 20, pady = 20)
         #
         # Bottom right view
@@ -112,7 +145,7 @@ class ImageTagger():
         self.__file_index_label = None
 
     def _start_view_mode(self):
-        '''Display a UI to view tagged images.'''
+        '''Display a UI to view tagged images in the current directory.'''
         self._prepare_to_switch_modes()
         self.__mode = self.MODE_VIEW
         self.__filtered_files = self.__all_tagged_files
@@ -171,6 +204,18 @@ class ImageTagger():
         self.__new_tag_field.bind('<Return>', self._add_new_tag_enter)
         self.__new_tag_label = tk.Label(self.__bottom_right_buttons_container, text = 'New tag:')
         self.__new_tag_label.pack(side = tk.RIGHT, padx = 10)
+
+    def _create_checkbutton(self, tag, default_to_true = False):
+        '''Create and add a tag checkbutton to the list of tags in the tkinter interface.'''
+        variable = tk.BooleanVar()
+        bg = self.CHECKBUTTON_DEFAULT_BG
+        if default_to_true:
+            variable.set(True)
+            bg = self.CHECKBUTTON_SELECTED_BG
+        checkbutton = tk.Checkbutton(self.__tags_inner_frame, text = tag, variable = variable, bg = bg, command = self._toggle_checkbutton)
+        checkbutton.pack(side = tk.TOP, anchor = tk.W, padx = 20)
+        self.__tag_vars.append(variable)
+        self.__tag_checkbuttons.append(checkbutton)
 
     # tkinter commands
 
@@ -292,9 +337,11 @@ class ImageTagger():
             tags_file.write(csv_text)
 
     def _get_all_files(self):
-        '''Populates `self.__all_files` with a list of all files in the current directory other than code files
-        and the `tags.csv` file created by this class. Non-image files like MP4s and PDFs will be included.'''
-        self.__all_files = [str(file) for file in Path('.').rglob('*') if file.is_file() and not str(file).endswith('.pyc')]
+        '''Populates `self.__all_files` with a list of all files in the current directory with the allowed extensions.'''
+        def is_valid_path(path):
+            extension = str(path).split('.')[-1]
+            return path.is_file() and extension in self.ALLOWED_FILE_EXTENSIONS
+        self.__all_files = [str(path) for path in Path('.').rglob('*') if is_valid_path(path)]
         self.__all_files.sort()
         # Remove the tags file and this code file.
         if self.TAGS_FILENAME in self.__all_files:
@@ -308,13 +355,15 @@ class ImageTagger():
 
     def _check_for_missing_files(self):
         '''Removes any files in the tags dictionary that can no longer be found in the current directory.'''
-        did_remove_files = False
+        files_to_remove = []
         for file in self.__all_tagged_files:
             if file not in self.__all_files:
                 self.__tags_dict.pop(file)
-                did_remove_files = True
+                files_to_remove.append(file)
                 print(f'Removed missing file {file} from tags dictionary.')
-        if did_remove_files:
+        for file in files_to_remove:
+            self.__all_tagged_files.remove(file)
+        if len(files_to_remove) > 0:
             self._save_tags()
 
     def _display_current_file(self):
@@ -340,18 +389,6 @@ class ImageTagger():
             self.__image_label.config(text = no_image_text, image = '')
         except UnidentifiedImageError:
             self.__image_label.config(text = f'Cannot display this file: {file}', image = '')
-
-    def _create_checkbutton(self, tag, default_to_true = False):
-        '''Create and add a tag checkbutton to the list of tags in the tkinter interface.'''
-        variable = tk.BooleanVar()
-        bg = self.CHECKBUTTON_DEFAULT_BG
-        if default_to_true:
-            variable.set(True)
-            bg = self.CHECKBUTTON_SELECTED_BG
-        checkbutton = tk.Checkbutton(self.__tags_inner_frame, text = tag, variable = variable, bg = bg, command = self._toggle_checkbutton)
-        checkbutton.pack(side = tk.TOP, anchor = tk.W, padx = 20)
-        self.__tag_vars.append(variable)
-        self.__tag_checkbuttons.append(checkbutton)
 
     def _update_checkbutton_bgs(self):
         '''Update the background color of all checkbuttons based on their selected state.'''
@@ -380,6 +417,7 @@ class ImageTagger():
         self.__file_index_label.config(text = file_index_text)
 
     def _set_file_index(self, index: int):
+        '''Sets `self.__file_index` and updates all the UI widgets that depend on the current file index.'''
         self.__file_index = index
         self._display_current_file()
         self._update_file_path_label()
