@@ -106,10 +106,11 @@ class ImageTagger():
         self.__tags_inner_frame.bind_all('<MouseWheel>', self._update_scroll_region_on_mousewheel)
         self.__select_tags_label = tk.Label(self.__tags_inner_frame, text = 'Select tags:', anchor = tk.W)
         self.__select_tags_label.pack(side = tk.TOP, anchor = tk.W, padx = 20, pady = 10)
-        self.__tag_vars = []
+        self.__tag_vars = {}
         self.__tag_checkbuttons = []
         self.__no_tags_label = None
         for tag in self.__all_tags:
+            self.__tag_vars[tag] = tk.BooleanVar()
             self._create_checkbutton(tag)
         self._update_checkbutton_bgs()
         if len(self.__all_tags) == 0:
@@ -121,11 +122,21 @@ class ImageTagger():
         #
         self.__bottom_right_section = tk.Frame(self.__root)
         self.__bottom_right_section.grid(row = 1, column = 1, sticky = tk.NSEW)
-        self.__selected_tags_label = tk.Label(self.__bottom_right_section, anchor = tk.E, justify = tk.RIGHT)
+        self.__selected_tags_label = tk.Label(self.__bottom_right_section, wraplength = self.IMAGE_SIZE // 2, anchor = tk.E, justify = tk.RIGHT)
         self.__selected_tags_label.pack(side = tk.TOP, anchor = tk.E, fill = tk.BOTH, padx = 20, pady = 5)
+
+        self.__search_tags_section = tk.Frame(self.__bottom_right_section)
+        self.__search_tags_section.pack(side = tk.TOP, anchor = tk.E, fill = tk.BOTH, padx = 20, pady = 5)
+        self.__search_tags_var = tk.StringVar()
+        self.__search_tags_var.trace_add('write', self._search_tags)
+        self.__search_tags_field = tk.Entry(self.__search_tags_section, textvariable = self.__search_tags_var)
+        self.__search_tags_field.pack(side = tk.RIGHT)
+        self.__search_tags_label = tk.Label(self.__search_tags_section, text = 'Search tags: ')
+        self.__search_tags_label.pack(side = tk.RIGHT, padx = 10)
+
         self._update_selected_tags_label()
         self.__bottom_right_buttons_container = tk.Frame(self.__bottom_right_section)
-        self.__bottom_right_buttons_container.pack(side = tk.TOP, anchor = tk.E, fill = tk.BOTH, pady = 20)
+        self.__bottom_right_buttons_container.pack(side = tk.TOP, anchor = tk.E, fill = tk.BOTH, pady = (5, 20))
         self.__exact_match_var = tk.BooleanVar()
         self.__file_index_label = None
 
@@ -133,7 +144,7 @@ class ImageTagger():
         '''Resets state of some shared widgets, and removes widgets that are specific to the "view" or "tag" mode,
         to prepare for switching from one mode to another.'''
         # Clear selected tags (without updating filtered images)
-        for var in self.__tag_vars:
+        for var in self.__tag_vars.values():
             var.set(False)
         self._update_checkbutton_bgs()
         self._update_selected_tags_label()
@@ -205,16 +216,12 @@ class ImageTagger():
         self.__new_tag_label = tk.Label(self.__bottom_right_buttons_container, text = 'New tag:')
         self.__new_tag_label.pack(side = tk.RIGHT, padx = 10)
 
-    def _create_checkbutton(self, tag, default_to_true = False):
+    def _create_checkbutton(self, tag):
         '''Create and add a tag checkbutton to the list of tags in the tkinter interface.'''
-        variable = tk.BooleanVar()
-        bg = self.CHECKBUTTON_DEFAULT_BG
-        if default_to_true:
-            variable.set(True)
-            bg = self.CHECKBUTTON_SELECTED_BG
-        checkbutton = tk.Checkbutton(self.__tags_inner_frame, text = tag, variable = variable, bg = bg, command = self._toggle_checkbutton)
+        var = self.__tag_vars[tag]
+        bg = self.CHECKBUTTON_SELECTED_BG if var.get() else self.CHECKBUTTON_DEFAULT_BG
+        checkbutton = tk.Checkbutton(self.__tags_inner_frame, text = tag, variable = var, bg = bg, command = self._toggle_checkbutton)
         checkbutton.pack(side = tk.TOP, anchor = tk.W, padx = 20)
-        self.__tag_vars.append(variable)
         self.__tag_checkbuttons.append(checkbutton)
 
     # tkinter commands
@@ -236,8 +243,10 @@ class ImageTagger():
 
     def _update_selected_tags_label(self):
         '''Update the label that shows how many tag checkbuttons are currently selected.'''
-        selected_tags = sum([1 for var in self.__tag_vars if var.get()])
-        self.__selected_tags_label.configure(text = f'Selected tags: {selected_tags}')
+        selected_tags_text = ', '.join(self._get_selected_tags())
+        if len(selected_tags_text) == 0:
+            selected_tags_text = '(none)'
+        self.__selected_tags_label.configure(text = f'Selected tags: {selected_tags_text}')
 
     def _previous_image(self):
         '''Display the previous image when in "view" mode.'''
@@ -251,7 +260,7 @@ class ImageTagger():
 
     def _clear_selected_tags(self):
         '''Deselect all selected tag checkbuttons.'''
-        for var in self.__tag_vars:
+        for var in self.__tag_vars.values():
             var.set(False)
         self._update_checkbutton_bgs()
         self._update_selected_tags_label()
@@ -284,13 +293,29 @@ class ImageTagger():
         self._update_file_path_label()
         self._update_untagged_images_label()
 
+    def _search_tags(self, *args):
+        self.__tags_canvas.yview_moveto(0.0)
+        search_text = self.__search_tags_var.get().lower()
+        for button in self.__tag_checkbuttons:
+            button.destroy()
+        self.__tag_checkbuttons = []
+        if len(search_text) > 0:
+            self.__filtered_tags = [tag for tag in self.__all_tags if search_text in tag]
+        else:
+            self.__filtered_tags = self.__all_tags
+        for tag in self.__filtered_tags:
+            self._create_checkbutton(tag)
+
     def _add_new_tag(self):
         '''Adds a new tag checkbutton using the text in the "Add new tag" text field. The new tag is selected by default.'''
         new_tag = self.__new_tag_field.get().lower()
         if len(new_tag) == 0 or new_tag in self.__all_tags:
             return
         self.__all_tags.append(new_tag)
-        self._create_checkbutton(new_tag, default_to_true = True)
+        var = tk.BooleanVar()
+        var.set(True)
+        self.__tag_vars[new_tag] = var
+        self._create_checkbutton(new_tag)
         self.__new_tag_field.delete(0, tk.END)
         if self.__no_tags_label:
             self.__no_tags_label.destroy()
@@ -312,7 +337,7 @@ class ImageTagger():
             with open(self.TAGS_FILENAME, encoding = 'utf-8') as tags_file:
                 text = tags_file.read()
         except FileNotFoundError:
-            
+
             return
         lines = text.split('\n')
         tags_set = set()
@@ -392,9 +417,11 @@ class ImageTagger():
 
     def _update_checkbutton_bgs(self):
         '''Update the background color of all checkbuttons based on their selected state.'''
-        for i in range(len(self.__tag_vars)):
-            bg = self.CHECKBUTTON_SELECTED_BG if self.__tag_vars[i].get() else self.CHECKBUTTON_DEFAULT_BG
-            self.__tag_checkbuttons[i].configure(bg = bg)
+        for checkbutton in self.__tag_checkbuttons:
+            tag = checkbutton.cget('text')
+            var = self.__tag_vars[tag]
+            bg = self.CHECKBUTTON_SELECTED_BG if var.get() else self.CHECKBUTTON_DEFAULT_BG
+            checkbutton.configure(bg = bg)
 
     def _update_file_path_label(self):
         '''Update the tkinter Label that shows the path of the file currently being displayed.'''
@@ -426,9 +453,7 @@ class ImageTagger():
 
     def _get_selected_tags(self) -> list[str]:
         '''Return a list of the currently selected tags.'''
-        selected_tag_indices = [index for index in range(len(self.__all_tags)) if self.__tag_vars[index].get()]
-        selected_tags = [self.__all_tags[index] for index in selected_tag_indices]
-        return sorted(selected_tags)
+        return sorted([tag for tag, var in self.__tag_vars.items() if var.get()])
 
     def _filter_images_by_tag(self):
         '''Updates `self.__filtered_files` to include only files that have the currently selected tags.'''
