@@ -18,6 +18,7 @@ Collection of miscellaneous scripts
 - [spelling_bee.py](https://github.com/gbrixey/Misc/blob/main/spelling_bee.py): A script that provides answers to the New York Times [Spelling Bee](https://www.nytimes.com/puzzles/spelling-bee) game.
 - [TextBasedDateCalculator.py](https://github.com/gbrixey/Misc/blob/main/TextBasedDateCalculator.py): Command-line version of `DateCalculator.py`
 - [to_gif.py](https://github.com/gbrixey/Misc/blob/main/to_gif.py): Intended for converting animated WEBP images to GIF
-- [to_jpeg.py](https://github.com/gbrixey/Misc/blob/main/to_jpeg.py): Intended for converting HEIC and WEBP files to JPEG
+- [to_jpg.py](https://github.com/gbrixey/Misc/blob/main/to_jpg.py): Intended for converting HEIC and WEBP files to JPG
+- [to_png.py](https://github.com/gbrixey/Misc/blob/main/to_png.py): Intended for converting WEBP files to PNG
 - [wingdings.py](https://github.com/gbrixey/Misc/blob/main/wingdings.py): Converts alphanumeric text to a string of wingding-like emojis
 - [wordle.py](https://github.com/gbrixey/Misc/blob/main/wordle.py): A script that helps you play [Wordle](https://www.nytimes.com/games/wordle/index.html).
